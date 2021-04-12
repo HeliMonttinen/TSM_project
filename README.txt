@@ -1,5 +1,5 @@
 This repository contains code used in the manuscript:
-Mönttinen H.A.M and Löytynoja A. "Template switching in DNA replication can createand maintain RNA hairpins"
+Mönttinen H.A.M and Löytynoja A. "Template switching in DNA replication can create and maintain RNA hairpins"
 
 
 Prerequests:
