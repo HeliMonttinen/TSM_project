@@ -2,7 +2,7 @@
 This tool draws a heatmap of two-step-CM-linked base-pairs.
 
 The script is run: 
-    python3 heatmaps.py input output
+    python3 heatmaps_two_step_CM.py input output
 
     input: A CSV formatted result file
             (stem-bp-in-parent,stem-bp-in-child  count)
