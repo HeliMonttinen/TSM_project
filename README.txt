@@ -15,12 +15,16 @@ Prerequests:
 
 	Create conda environment with the required python packages:
 
-	conda env create -f environment.yml
+	conda create --name py3 --file req.txt
 
 	
 	Activate the environment:
 	
-	conda activate env
+	conda activate py3
+	
+	install ete3:
+	
+	conda install -c etetoolkit ete3 
 
 	
 	Compile the fpa2.cpp file:
