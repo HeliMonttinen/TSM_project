@@ -34,6 +34,6 @@ Prerequests:
 
 Running scripts:
 
-	The main scripts can be found from main/ directory. To run them please see the doctring in the
+	The main scripts can be found from main/ directory. To run them please see a doctring in the
 	beginning of each script.
 
