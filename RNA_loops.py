@@ -7,8 +7,8 @@ Author: Heli Mönttinen (ORCID: 0000-0003-2461-0690)
 """
 
 from Bio.Seq import Seq
-from itertools import islice
 import common
+from itertools import islice
 import re
 
 
@@ -35,6 +35,45 @@ def _join_dot_file_lines(dot_file):
     return dot_parenthesis_string
 
 
+def identify_seq_fit_to_motif(sequence, motif):
+    """
+    Identifies if a given sequence fits to a given motif.
+
+    Arguments
+    ===========
+    :Sequences: sequence of interest
+    :motif: A motif to check
+
+    Returns:
+    True if a given motif is found from the given sequence.
+    """
+
+    iupac = {'N': {'U': "", 'G': "", 'T': "", 'A': "",
+                   'C': "", 'R': "", 'Y': "", 'S': "",
+                   'W': "", 'M': "", 'B': "", 'K': "",
+                   'D': "", 'H': "", 'V': ""},
+             'R': {'G': "", 'A': "", 'R': ""},
+             'B': {'B': "", 'T': "", 'U': "", 'G': "",
+                   'C': "", 'S': "", 'K': ""},
+             'Y': {'C': "", 'T': "", 'U': "", 'Y': ""},
+             'S': {'G': "", 'C': "", 'S': ""},
+             'W': {'A': "", 'T': "", 'U': "", 'W': ""},
+             'K': {'G': "", 'T': "", 'U': ""}}
+
+    if len(sequence) != len(motif):
+        return
+
+    for i in range(len(sequence)):
+
+        if sequence[i] == motif[i]:
+            continue
+        elif motif[i] in iupac and sequence[i] in iupac[motif[i]]:
+            continue
+        else:
+            return
+    return True
+
+
 def _get_sequence_dot_parenthesis(dot_file):
     """
     Joins a sequence part of a dot parenthesis file into one sequence string.
@@ -56,46 +95,6 @@ def _get_sequence_dot_parenthesis(dot_file):
                 sequence += line.rstrip()
 
     return sequence
-
-
-def identify_seq_fit_to_motif(sequence, motif):
-    """
-    Identifies if a given sequence fits to a given motif.
-
-    Arguments
-    ===========
-    :Sequences: sequence of interest
-    :motif: A motif to check
-
-    Returns:
-    True if a given motif is found from the given sequence.
-    """
-
-    iupac = {'N': {'U':"",'G':"", 'T':"", 'A':"",
-                   'C':"", 'R':"", 'Y':"", 'S':"",
-                   'W':"", 'M':"", 'B':"", 'K':"",
-                   'D':"", 'H':"", 'V':""},
-             'R': {'G':"", 'A':"", 'R':""},
-             'B': {'B':"", 'T':"", 'U':"", 'G':"",
-                 'C':"", 'S':"", 'K':""},
-             'Y': {'C':"", 'T':"", 'U':"", 'Y':""},
-             'S': {'G':"", 'C':"", 'S':""},
-             'W': {'A':"", 'T':"", 'U':"", 'W':""},
-             'K': {'G':"", 'T':"", 'U':""}}
-
-    basic = {'A':"", 'G':"", 'C':"", 'U':"", 'T':""}
-    if len(sequence) != len(motif):
-        return
-
-    for i in range(len(sequence)):
-
-        if sequence[i] == motif[i]:
-            continue
-        elif motif[i] in iupac and sequence[i] in iupac[motif[i]]:
-            continue
-        else:
-            return
-    return True
 
 
 def make_reverse_complement(seqs):
@@ -224,50 +223,58 @@ class RNA_loops:
             if self.mode is None:
                 loop_start_char = '('
                 loop_end_char = ')'
-            elif self.mode is 'Stockholm':
+            elif self.mode == 'Stockholm':
                 loop_start_char = '<'
                 loop_end_char = '>'
-
-            minimum=min(set([(len(self.dot_parenthesis) - (len(self.dot_parenthesis) - loop_start)),
-                              len(self.dot_parenthesis) - loop_end]))
 
             for index in range(1, len(self.dot_parenthesis)-1):
 
                 if index == 1:
                     if ((self.dot_parenthesis[
-                        loop_start-index] == loop_start_char) and\
-                            (self.dot_parenthesis[
-                                loop_end-1+index] == loop_end_char)):
+                        loop_start-index] == loop_start_char)
+                        and (self.dot_parenthesis[
+                            loop_end-1+index] == loop_end_char)):
 
-                            if loop_start-index > 0 and ((loop_end-1+index) < len(self.dot_parenthesis)-1):
-                                stem_first = loop_start-index
-                                stem_last = loop_end+index
-
+                        if loop_start-index > 0 and\
+                                ((loop_end-1+index) <
+                                 len(self.dot_parenthesis)-1):
+                            stem_first = loop_start-index
+                            stem_last = loop_end+index
 
                 elif ((self.dot_parenthesis[
-                    loop_start-index] == loop_start_char or\
-                            (self.dot_parenthesis[loop_start-index] == '.')) and\
+                    loop_start-index] == loop_start_char or
                             (self.dot_parenthesis[
-                                loop_end-1+index] == loop_end_char or\
-                                        self.dot_parenthesis[loop_end-1+index] == '.')):
+                                loop_start-index] == '.')) and
+                            (self.dot_parenthesis[
+                                loop_end-1+index] ==
+                                loop_end_char or
+                                self.dot_parenthesis[loop_end-1+index]
+                                == '.')):
 
-                                            if loop_start-index > 0 and ((loop_end-1+index) < len(self.dot_parenthesis)-1):
+                    if loop_start-index > 0 and\
+                            ((loop_end-1+index) < len(self.dot_parenthesis)-1):
 
-                                                stem_first = loop_start-index
-                                                stem_last = loop_end+index
+                        stem_first = loop_start-index
+                        stem_last = loop_end+index
 
-
-                                            else:
-                                                break
+                    else:
+                        break
                 else:
                     break
-                                
+
+            for i in range(stem_last):
+                if self.dot_parenthesis[stem_last] == '.' and\
+                        self.dot_parenthesis[stem_first] == '.':
+                    stem_first = stem_first + 1
+                    stem_last = stem_last - 1
+                else:
+                    break
 
             return stem_first, stem_last+1
 
         pattern = re.compile(r"(?<=\()[.-]+(?=\))")
 
-        if self.mode is 'Stockholm':
+        if self.mode == 'Stockholm':
             pattern = re.compile(r"(?<=\<)[._]+(?=\>)")
 
         for loop in re.finditer(pattern, self.dot_parenthesis):
