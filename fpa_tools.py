@@ -28,7 +28,7 @@ def fpa_parsing(fpa_file):
                     A key is a tuple of two sequence identifiers
                     (in sorted order).
                     The result dict contains
-                    starting and ending indexes and sequences  for 
+                    starting and ending indexes and sequences  for
                     a tsm source and target regions.
 
     """
@@ -68,8 +68,9 @@ def fpa_parsing(fpa_file):
 
                 fpa_dict[sequence_ids[0], sequence_ids[1]].append(case)
 
-                case["end"] = int(case["start"]) + len(case["seq_qry"].replace("-", ""))
-            
+                case["end"] = int(case["start"]) +\
+                    len(case["seq_qry"].replace("-", ""))
+
             elif "ref" in line and "|" in line:
 
                 case["seq_ref"] = line.split("|")[1]

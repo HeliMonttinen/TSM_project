@@ -3,50 +3,23 @@ A collection of often needed scripts.
 
 Author: Heli Mönttinen (ORCID: 0000-0003-2461-0690)
 """
-from itertools import islice
 import os
 
 
-
-def filepaths_in_dir(directory,
-                     inc_extension=None,
-                     exc_extension=None):
+def return_file(root_dir):
     """
-    This tool goes through all files
-    in a given directory.
+    Yields all the filepaths under a dir.
+    root_dir: a directory to looked at
 
-    Parameters:
-
-    :directory: A full path to the directory of interest
-    :inc_extension: A file extension to be included results
-    _exl_extesntion: A file extenstion to be excluded from
-                     the results.
-
-    Yield:
-
-    Filepath: A full path to the file
-
+    Yields
+    filepath: A full path to the file.
     """
 
-    for subdir, dirs, files in os.walk(directory):
+    for subdir, dirs, files in os.walk(root_dir):
         for filename in files:
+            filepath = subdir + os.sep + filename
 
-            if inc_extension is not None and\
-                    filename.endswith(inc_extension) is True:
-
-                filepath = subdir + os.sep + filename
-                yield filepath
-
-            elif exc_extension is not None and\
-                    filename.endswith(exc_extension) is False:
-
-                filepath = subdir + os.sep + filename
-                yield filepath
-
-            else:
-
-                filepath = subdir + os.sep + filename
-                yield filepath
+            yield filepath
 
 
 def contains_any(string, chr_set):
@@ -66,23 +39,8 @@ def contains_any(string, chr_set):
     return 1 in [char in string for char in chr_set]
 
 
-def return_file(root_dir):
-    """
-    Yields all the filepaths under a dir.
-    root_dir: a directory to looked at
-
-    Yields
-    filepath: A full path to the file.
-    """
-
-    for subdir, dirs, files in os.walk(root_dir):
-        for filename in files:
-            filepath = subdir + os.sep + filename
-
-            yield filepath
-
-
-def split_multiple_fasta_file(fasta, not_included=None, include=None, unwanted=None):
+def split_multiple_fasta_file(fasta, not_included=None,
+                              include=None, unwanted=None):
     """
     Yields one fasta at a time. Not_included is an optional parameter,
     which includes identifiers that are not wanted to be
@@ -156,5 +114,3 @@ def split_multiple_fasta_file(fasta, not_included=None, include=None, unwanted=N
 
         if sequence is True:
             yield fasta_sequence
-
-

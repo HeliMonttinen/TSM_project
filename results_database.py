@@ -1,5 +1,5 @@
 """
-This script is intended for adding information 
+This script is intended for adding information
 about the identified TSMs to a mongo database.
 """
 
@@ -9,7 +9,7 @@ from mongoengine import (Document, StringField,
 
 class Results_RNA_ts(Document):
     """
-    A Document for an information of the identified TSM. 
+    A Document for an information of the identified TSM.
     """
 
     identifier = StringField(required=True)
@@ -41,6 +41,8 @@ class Results_RNA_ts(Document):
     major_change = BooleanField()
     no_change = BooleanField()
     loop_extension = BooleanField()
+    stem_extended = BooleanField()
+    stem_base_extension = BooleanField()
     mismatch_fixed = BooleanField()
     leaf = BooleanField()
     new_mismatch = BooleanField()
@@ -65,7 +67,8 @@ class Results_RNA_ts(Document):
     structure_child1 = StringField()
     structure_child2 = StringField()
     tree_file = StringField()
-
+    family = StringField()
+    taxonomy = StringField()
 
     meta = {
         'db_alias': 'default',
@@ -90,13 +93,13 @@ def add_information(result_dict):
     result_document = Results_RNA_ts(
             identifier=result_dict["identifier"],
             cluster=result_dict["cluster"],
-            ts_distance = result_dict["ts_distance"],
+            ts_distance=result_dict["ts_distance"],
             position=result_dict["position"],
             ts_quality=result_dict["ts_quality"],
             ts_length=result_dict["ts_length"],
             ts_mismatch=result_dict["ts_mismatch"],
-            loop_seq = result_dict["loop_seq"],
-            loop_seq_ref = result_dict["loop_seq_ref"],
+            loop_seq=result_dict["loop_seq"],
+            loop_seq_ref=result_dict["loop_seq_ref"],
             structural_quality=result_dict["structural_quality"],
             CM_present=result_dict["CM_present"],
             one_CM=result_dict["one_CM"],
@@ -105,39 +108,42 @@ def add_information(result_dict):
             CM_and_inverted_loop=result_dict["CM_and_inverted_loop"],
             inverted_loop=result_dict["inverted_loop"],
             new_loop=result_dict["new_loop"],
-            asymmetric_TSM_between_stems=result_dict["asymmetric_TSM_between_stems"],
+            asymmetric_TSM_between_stems=result_dict[
+                "asymmetric_TSM_between_stems"],
             TSM_loop_to_stem=result_dict["TSM_loop_to_stem"],
             TSM_within_one_stem=result_dict["TSM_within_one_stem"],
-            loop_to_seq = result_dict["loop_to_seq"],
-            adj_nucl1 = result_dict["adj_nucl1"],
-            adj_nucl2 = result_dict["adj_nucl2"],
-            adj_nucl1_ref = result_dict["adj_nucl1_ref"],
-            adj_nucl2_ref = result_dict["adj_nucl2_ref"],
+            loop_to_seq=result_dict["loop_to_seq"],
+            adj_nucl1=result_dict["adj_nucl1"],
+            adj_nucl2=result_dict["adj_nucl2"],
+            adj_nucl1_ref=result_dict["adj_nucl1_ref"],
+            adj_nucl2_ref=result_dict["adj_nucl2_ref"],
             major_change=result_dict["major_change"],
             no_change=result_dict["no_change"],
             loop_extension=result_dict["loop_extension"],
+            stem_extended=result_dict["stem_extended"],
+            stem_base_extension=result_dict["stem_base_extension"],
             mismatch_fixed=result_dict["mismatch_fixed"],
             leaf=result_dict["leaf"],
             new_mismatch=result_dict["new_mismatch"],
             compensating_mutation=result_dict["compensating_mutations"],
-            query_node = result_dict["query_node"],
-            ref_node = result_dict["ref_node"],
-            sister_node = result_dict["sister_node"],
-            ancestor_node = result_dict["ancestor_node"],
-            child_node1 = result_dict["child_node1"],
-            child_node2 = result_dict["child_node2"],
-            alignment_file = result_dict["alignment_file"],
-            tree_file = result_dict["tree_file"],
-            qry_ts_start = result_dict["qry_ts_start"],
-            qry_ts_end = result_dict["qry_ts_end"],
-            ref_ts_start = result_dict["ref_ts_start"], 
-            ref_ts_end = result_dict["ref_ts_end"],
-            structure_ref = result_dict["structureRef"],
-            structure_qry = result_dict["structureQry"],
-            structure_sister = result_dict["structureSister"],
-            structure_child1 = result_dict["structureFileChild1"],
-            structure_child2 = result_dict["structureFileChild2"])
+            query_node=result_dict["query_node"],
+            ref_node=result_dict["ref_node"],
+            sister_node=result_dict["sister_node"],
+            ancestor_node=result_dict["ancestor_node"],
+            child_node1=result_dict["child_node1"],
+            child_node2=result_dict["child_node2"],
+            alignment_file=result_dict["alignment_file"],
+            tree_file=result_dict["tree_file"],
+            qry_ts_start=result_dict["qry_ts_start"],
+            qry_ts_end=result_dict["qry_ts_end"],
+            ref_ts_start=result_dict["ref_ts_start"],
+            ref_ts_end=result_dict["ref_ts_end"],
+            structure_ref=result_dict["structureRef"],
+            structure_qry=result_dict["structureQry"],
+            structure_sister=result_dict["structureSister"],
+            structure_child1=result_dict["structureFileChild1"],
+            structure_child2=result_dict["structureFileChild2"],
+            family=result_dict["family"],
+            taxonomy=result_dict["taxonomy"])
 
     result_document.save()
-
-
