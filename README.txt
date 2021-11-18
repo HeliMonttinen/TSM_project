@@ -15,7 +15,7 @@ Prerequests:
 
 	Create conda environment with the required python packages:
 
-	conda create --name py3 --file req.txt
+	conda env create -f environment.yml
 
 	
 	Activate the environment:
