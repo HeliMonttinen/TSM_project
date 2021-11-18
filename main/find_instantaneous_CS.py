@@ -1,34 +1,36 @@
 """
 This script is for identifing instantaneous CSs in which
-the initial mutations and CM are in the same sequence. 
-Goes automatically through all the .fasta files in the directory.
-All fasta files have to be in a format identifier.fasta. The
-same directory has to contain also tree files following
+the initial mutations and CM are in the same sequence.
+Goes automatically through all the .fas files in the directory.
+All fasta files have to be in a format identifier.fas or identifier_pagan.fas.
+The same directory has to contain also tree files following
 format identifier.anctree.
 
 Script requires python3.7
 
-The script is run:
-
-python find_classical_CS.py fpa_dir/ structure_dir outputfile number_of_cores
-
 Arguments
 ==========
 
-alignment_dir: Directory, where the alignments and trees are located.  
+tree_dir: A directory in which all tree files are located
 structure_dir: A directory, where the predicted secondary structures are
                located
 output_name: An output file identidier that is used for specifying the written
              output files.
 number_of_cores: The wanted number of the cores
 
+regions_file: A .csv file containing information on high quality regions
+              for each internal node sequence
+
+alignment_dir: Directory, where the alignments are located
+
+leaf_mode: True or False. True if instantaneous CMs are collected from
+           leaf nodes.
 
 Author: Heli Mönttinen  (ORCID: 0000-0003-2461-0690)
 
 """
-
-
 from Bio import SeqIO
+import copy
 import os
 import sys
 import multiprocessing as mp
@@ -39,7 +41,6 @@ filen = os.path.join(grand_parent_dir)
 sys.path.append(filen)
 
 
- 
 def count_loops(i,
                 tree,
                 fasta_dict,
@@ -61,15 +62,13 @@ def count_loops(i,
                 the keys and they has to correspond the node
                 names of the treei
 
-    structure_dir: A path to a directory containing the 
+    structure_dir: A path to a directory containing the
                    dot-parenthesis files. The file names
                    have in correct format identifier_nodename.db
 
     tuplei: a set that includes the parental node name, the child 1
-            node name, the child 2 node name, information if a child 1
-            is a leaf node (true/false) and information if a child 2
-            is a leaf node (true/false).
-
+            node name and regions dictionary containig information on
+            high quality regions.
 
     Returns
     =======
@@ -78,12 +77,12 @@ def count_loops(i,
 
     i: The subprocess count
     count: a count for successful comparisons
-    loop_count: a total count for the loops 
+    loop_count: a total count for the loops
     adj_nucl_count: count for different closing pairs (dictionary)
     rev_comp: If an instantaneous CS is linked to a loop inversion,
               they are collected into this dictionary
     leaf_count: A count for intantaneous CS containing loops in
-                leaf nodes
+                leaf nodes:
     nonleaf_count: A count for instantaneous CS containing loops
                    in the internal nodes
     mismatches: A dictionary counting frequencies, how many
@@ -94,116 +93,40 @@ def count_loops(i,
              instantaneous CS was located.
 
     """
-
-    from RNA_alignments import unusual_iupac_char
     from RNA_loops import _join_dot_file_lines
-    from tree_parse import (read_tree,
-                            go_through_branches)
     from structure import identify_immediate_CS
 
-
-    count = 0
-    loop_count = {}
-    adj_nucl_count = {}
     dict_structs = {}
-    leaf_count = 0
-    nonleaf_count = 0
-    rev_comp = {}
-    mismatches = {}
-    lengths = {}
 
     anc_seqid = tuplei[0]
     sample_seq1 = tuplei[1]
-    sample_seq2 = tuplei[2]
-    s1_leaf = tuplei[3]
-    s2_leaf = tuplei[4]
+    regions = tuplei[2]
 
-    sample_list = []
-
-    for seq in [anc_seqid, sample_seq1, sample_seq2]:
-
-        
-        anc_up = ((tree&anc_seqid).up).name
-
-        try:
-            structure = _join_dot_file_lines(structure_dir  + alignment_file + '_' + seq + '.db')
-            dict_structs[seq] = structure
-            if seq != anc_seqid:
-                sample_list.append(seq)
-
-        except:
-            if seq == anc_seqid:
-                break
-            continue
-
-
+    structure1 = _join_dot_file_lines(
+            structure_dir + alignment_file + '_' + anc_seqid + '.db')
+    structure2 = _join_dot_file_lines(
+            structure_dir + alignment_file + '_' + sample_seq1 + '.db')
+    dict_structs[anc_seqid] = structure1
+    dict_structs[sample_seq1] = structure2
     child1 = None
     child2 = None
-    
-    for x in sample_list:
 
-        if x == sample_seq1:
-            sis_seq = sample_seq2
-        else:
-            sis_seq = sample_seq1
-        if not (tree&x).is_leaf():
-            child1= fasta_dict[(tree&x).children[0].name]
-            child2= fasta_dict[(tree&x).children[1].name]
+    if not (tree&sample_seq1).is_leaf():
+        child1 = fasta_dict[(tree&anc_seqid).children[0].name]
+        child2 = fasta_dict[(tree&anc_seqid).children[1].name]
 
-        count1, loop, adj1, revs, mismatch, length = identify_immediate_CS(
-                dict_structs[anc_seqid],
-                dict_structs[x],
-                fasta_dict[anc_seqid],
-                fasta_dict[x],
-                fasta_dict[anc_up],
-                fasta_dict[sis_seq],
-                child1=child1,
-                child2=child2)
+    (count1, loop, adj1, revs, mismatch,
+     length, mut_types, used_ind) = identify_immediate_CS(
+            dict_structs[anc_seqid],
+            dict_structs[sample_seq1],
+            fasta_dict[anc_seqid],
+            fasta_dict[sample_seq1],
+            regions,
+            child1=child1,
+            child2=child2)
 
-        count += count1
-        for loopx in loop:
-            if x == sample_seq1 and s1_leaf is True:
-                leaf_count += loop[loopx]
-            elif x == sample_seq1 and s1_leaf is False:
-                nonleaf_count += loop[loopx]
-            if x == sample_seq2 and s2_leaf is True:
-                leaf_count += loop[loopx]
-            elif x == sample_seq2 and s2_leaf is False:
-                nonleaf_count += loop[loopx]
-
-            if loopx in loop_count:
-                loop_count[loopx] += loop[loopx]
-            else:
-                loop_count[loopx] = loop[loopx]
-
-        for adjx in adj1:
-            if adjx in adj_nucl_count:
-
-                adj_nucl_count[adjx] += adj1[adjx]
-            else:
-                adj_nucl_count[adjx] = adj1[adjx]
-
-        for r in revs:
-            if r in rev_comp:
-                rev_comp[r] += revs[r]
-            else:
-                rev_comp[r] = revs[r]
-
-        for r in mismatch:
-            if r in mismatches:
-                mismatches[r] += mismatch[r]
-            else:
-                mismatches[r] = mismatch[r]
-
-        for r in length:
-            if r in lengths:
-                lengths[r] += length[r]
-            else:
-                lengths[r] = length[r]
-
-
-
-    return (i, count, loop_count, adj_nucl_count, rev_comp, leaf_count, nonleaf_count, mismatches, lengths)
+    return (i, count1, loop, adj1, revs, mismatch,
+            length, mut_types, used_ind, child1)
 
 
 def main():
@@ -213,114 +136,187 @@ def main():
 
     """
 
+    from collections import (defaultdict,
+                             OrderedDict)
+
     from tree_parse import (read_tree,
                             go_through_branches)
-                            
 
-    fpa_dir = sys.argv[1]
+    tree_dir = sys.argv[1]
     structure_dir = sys.argv[2]
     output_name = sys.argv[3]
-    number_of_cores = sys.argv[4]
-
+    number_of_cores = int(sys.argv[4])
+    regions_file = sys.argv[5]
+    alignment_dir = sys.argv[6]
+    leaf_mode = str(sys.argv[7])
 
     all_count = 0
     leaf_count = 0
     nonleaf_count = 0
-    loop_count = {}  
+    loop_count = {}
     adj_nucl_count = {}
     mismatches = {}
     lengths = {}
+    mutation_types = {}
 
+    regions_dict = defaultdict(dict)
 
+    print("done")
+    with open(regions_file) as f:
 
-    alignment_file_list = []
+        for line in f:
+            line_splitted = line.rstrip().split('\t')
+            identifier = line_splitted[0].split('_')[0]
+            parent = line_splitted[1].rstrip()
+            try:
+                regions = line_splitted[6].split(';')
+            except:
+                continue
 
-    for subdir, dirs, files3 in os.walk(fpa_dir):
+            kid1 = line_splitted[2]
+            kid2 = line_splitted[3]
+
+            if leaf_mode == "True":
+                if '#' in kid1 and '#' in kid2:
+                    continue
+            else:
+                if ('#' not in kid1) and ('#' not in kid2):
+                    continue
+
+            for reg in regions:
+                if len(reg) > 0:
+
+                    reg_0 = int(reg.lstrip('[').split(', ')[0])
+                    reg_1 = int(reg.rstrip(']').split(', ')[1])
+                    if identifier not in regions_dict:
+                        regions_dict[identifier] = dict()
+                    if parent not in regions_dict[identifier]:
+                        regions_dict[identifier][parent] = dict()
+                    regions_dict[identifier][parent][
+                            str(reg_0) + '_' + str(reg_1)] = ""
+    print("done")
+
+    for subdir, dirs, files3 in os.walk(tree_dir):
         for file in files3:
-            if file.endswith('.fas'):
 
-                alignment_file = file.split('/')[-1].rstrip('_pagan.fas')
+            if file.endswith('.anctree'):
+                used = set()
+
+                identifier = file.split('/')[-1].rstrip('_pagan.anctree')
+                print(identifier)
+                if identifier not in regions_dict:
+                    continue
+
+                if os.path.exists(alignment_dir + identifier + '.fas'):
+                    filename = alignment_dir + identifier + '.fas'
+                else:
+                    filename = alignment_dir + identifier + '_pagan.fas'
 
                 bio_align_dict = SeqIO.to_dict(SeqIO.parse(
-                                    filename.rstrip('_fpa') + '.fas',
-                                                            "fasta"))
+                                    filename,
+                                    "fasta"))
+
                 fasta_dict = OrderedDict()
 
                 for seq in bio_align_dict:
-                    fasta_dict[seq] = str(bio_align_dict[seq].seq)
-                
+                    fasta_dict[seq] =\
+                            str(bio_align_dict[seq].seq).replace('+', '-')
+
                 if len(fasta_dict) > 19:
-                    
-                    tree = read_tree(fpa_dir + alignment_file + ".anctree")
+
+                    tree = read_tree(tree_dir + identifier + "_pagan.anctree")
 
                     sets = list()
-                    for anc_seqid, sample_seq1, sample_seq2 in go_through_branches(tree):
+                    for anc_seqid, sample_seq1, sample_seq2 in\
+                            go_through_branches(tree):
 
-                        if (tree&anc_seqid).is_root():
+                        if anc_seqid not in regions_dict[identifier]:
                             continue
+
+                        regs = copy.deepcopy(
+                                regions_dict[identifier][anc_seqid])
 
                         samp1_leaf = (tree&sample_seq1).is_leaf()
                         samp2_leaf = (tree&sample_seq2).is_leaf()
 
-                        sets.append((anc_seqid, sample_seq1, sample_seq2, samp1_leaf, samp2_leaf))
+                        if leaf_mode == "True":
 
-                    pool = mp.Pool(number_of_cores)   
+                            if samp1_leaf is True:
+                                sets.append((anc_seqid, sample_seq1, regs))
+                            if samp2_leaf is True:
+                                sets.append((anc_seqid, sample_seq2, regs))
+                        else:
+                            if samp1_leaf is False:
+                                sets.append((anc_seqid, sample_seq1, regs))
+                            if samp2_leaf is False:
+                                sets.append((anc_seqid, sample_seq2, regs))
+
+                    pool = mp.Pool(number_of_cores)
 
                     results_objects = [pool.apply_async(
                         count_loops,
-                        args=(i, tree, fasta_dict, alignment_file, structure_dir, tuplei)) for i, tuplei in enumerate(sets)]
+                        args=(i, tree, fasta_dict,
+                              identifier, structure_dir,
+                              tuplei)) for i, tuplei in enumerate(sets)]
 
-                    results = [r.get()[2] for r in results_objects]
+                    results1 = [r.get()[1] for r in results_objects]
+                    results2 = [r.get()[2] for r in results_objects]
+                    results3 = [r.get()[3] for r in results_objects]
+                    results5 = [r.get()[5] for r in results_objects]
+                    results6 = [r.get()[6] for r in results_objects]
+                    results7 = [r.get()[7] for r in results_objects]
+                    results8 = [r.get()[8] for r in results_objects]
+                    results9 = [r.get()[9] for r in results_objects]
 
-                    for r in results:
-                        for x in r:
-                            if x in loop_count:
-                                loop_count[x] += r[x]
+                    for a in range(len(results8)):
+                        for rx in results8[a]:
+                            if results8[a][rx] in used:
+                                continue
+                            elif len(results8[a]) == 0:
+                                continue
                             else:
-                                loop_count[x] = r[x]
-    
-                    results = [r.get()[3] for r in results_objects]
+                                used.add(results8[a][rx])
 
-                    for r in results:
-                        for x in r:
-                                
-                            if x in adj_nucl_count:
-                                adj_nucl_count[x] += r[x]
-                            else:
-                                adj_nucl_count[x] = r[x]
+                                for x in results2[a][rx]:
+                                    if x in loop_count:
+                                        loop_count[x] += results2[a][rx][x]
+                                    else:
+                                        loop_count[x] = results2[a][rx][x]
 
+                                for x in results3[a][rx]:
 
+                                    if x in adj_nucl_count:
+                                        adj_nucl_count[x] += results3[a][rx][x]
+                                    else:
+                                        adj_nucl_count[x] = results3[a][rx][x]
 
-                    results = [r.get()[5] for r in results_objects]
+                                if results9[a] is None:
 
-                    for r in results:
-                        leaf_count += r
+                                    leaf_count += results1[a][rx]
+                                else:
 
-                    results = [r.get()[6] for r in results_objects]
+                                    nonleaf_count += results1[a][rx]
 
-                    for r in results:
-                        nonleaf_count += r
+                                all_count += results1[a][rx]
 
-                    results = [r.get()[7] for r in results_objects]
+                                for x in results5[a][rx]:
 
-                    for r in results:
-                        for x in r:
-                            if x in mismatches:
-                                mismatches[x] += r[x]
-                            else:
-                                mismatches[x] = r[x]
+                                    if x in mismatches:
+                                        mismatches[x] += results5[a][rx][x]
+                                    else:
+                                        mismatches[x] = results5[a][rx][x]
 
+                                for x in results6[a][rx]:
+                                    if x in lengths:
+                                        lengths[x] += results6[a][rx][x]
+                                    else:
+                                        lengths[x] = results6[a][rx][x]
 
-                    results = [r.get()[8] for r in results_objects]
-
-                    for r in results:
-                        for x in r:
-                            if x in lengths:
-                                lengths[x] += r[x]
-                            else:
-                                lengths[x] = r[x]
-
-
+                                for x in results7[a][rx]:
+                                    if x in mutation_types:
+                                        mutation_types[x] += results7[a][rx][x]
+                                    else:
+                                        mutation_types[x] = results7[a][rx][x]
 
                     pool.close()
                     pool.join()
@@ -328,7 +324,7 @@ def main():
     with open("classical_CS_loops_" + output_name + ".txt", 'w') as f:
         for i in loop_count:
             f.write(str(i) + '\t' + str(loop_count[i]) + '\n')
-    with open("classical_CS_closing_pair" + output_name + "txt", 'w') as f:
+    with open("classical_CS_closing_pair" + output_name + ".txt", 'w') as f:
         for i in adj_nucl_count:
             f.write(str(i) + '\t' + str(adj_nucl_count[i]) + '\n')
 
@@ -339,12 +335,15 @@ def main():
         f.write("lenghts\n")
         for i in lengths:
             f.write(str(i) + '\t' + str(lengths[i]) + '\n')
+        f.write("mutation_types\n")
+        for i in mutation_types:
+            f.write(str(i) + '\t' + str(mutation_types[i]) + '\n')
 
     with open("node_info_" + output_name, 'w') as f:
 
-        f.write(str("all cases: " + all_count) + '\n')
-        f.write(str("Classical CS in leafs: " + leaf_count) + '\n')
-        f.write(str("Classical CS in non-leafs: " + nonleaf_count) + '\n')
+        f.write("all cases: " + str(all_count) + '\n')
+        f.write("Classical CS in leafs: " + str(leaf_count) + '\n')
+        f.write("Classical CS in non-leafs: " + str(nonleaf_count) + '\n')
 
 
 if __name__ == "__main__":
