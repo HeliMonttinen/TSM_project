@@ -6,15 +6,13 @@ Author: Heli Mönttinen (OrcID: 0000-0003-2461-0690)
 """
 
 from collections import defaultdict
+from common import split_multiple_fasta_file
 from decimal import Decimal
 import fpa_ext4
 import io
-import os
-import random
 import subprocess
 import numpy
 
-from common import  split_multiple_fasta_file
 
 def unusual_iupac_char(seq1, seq2):
     """
@@ -55,7 +53,7 @@ def unusual_iupac_char(seq1, seq2):
 
         if a not in iupac and b not in iupac:
 
-            seq1 = seq1 + a 
+            seq1 = seq1 + a
             seq2 = seq2 + b
         elif a in iupac:
             a_set = set(iupac[a])
@@ -75,7 +73,7 @@ def unusual_iupac_char(seq1, seq2):
 
         elif b in iupac:
             b_set = set(iupac[b])
-            a_set  = set([a])
+            a_set = set([a])
 
             intersection = a_set.intersection(b_set)
             if len(intersection) > 0:
@@ -107,13 +105,23 @@ def format_sequences_for_fpa(seq1, seq2):
 
     ns1 = seq1.lower().replace("u", "t")
     ns2 = seq2.lower().replace("u", "t")
-    chr_list = set(['-', 'a', 't', 'c', 'g', 'r', 'y', 's', 'w', 'k', 'm', 'b', 'd', 'h', 'v', 'n'])
+    ns1 = ns1.replace('+', '-')
+    ns2 = ns2.replace('+', '-')
+
+    chr_list = set(['-', 'a', 't', 'c', 'g', 'r', 'y', 's',
+                    'w', 'k', 'm', 'b', 'd', 'h', 'v', 'n'])
 
     seq1 = ""
     seq2 = ""
 
     for a, b in zip(ns1, ns2):
         if a == '-' and b == '-':
+            continue
+        elif a == '+' and b == '+':
+            continue
+        elif a == '+' and b == '-':
+            continue
+        elif a == '-' and b == '+':
             continue
         else:
             if a not in chr_list:
@@ -126,21 +134,6 @@ def format_sequences_for_fpa(seq1, seq2):
             seq2 = seq2 + b
 
     return seq1, seq2
-
-
-def parse_sequences_from_pairwise_mafft(stdout):
-    """
-    Takes a fasta-formatted output and parses
-    the sequences into a dictionary format.
-    """
-
-    fasta_dict = {}
-
-    for fasta in split_multiple_fasta_file(stdout):
-        fasta_parts = fasta.split('\n')
-        fasta_dict[fasta_parts[0].lstrip('>')] = fasta_parts[1]
-
-    return fasta_dict
 
 
 def run_fpa(seq1, seq2, perfect_copy=False):
@@ -159,12 +152,12 @@ def run_fpa(seq1, seq2, perfect_copy=False):
 
     FPA.set_bool("force_overlap", True)
     FPA.set_int("min_length", 6)
-    FPA.set_bool("clean_rna",True)
+    FPA.set_bool("clean_rna", True)
     FPA.set_int("scan_window_limit", 1)
 
     if perfect_copy is True:
         FPA.set_bool("perfect_copy", True)
-    FPA.set_bool('iupac',True)
+    FPA.set_bool('iupac', True)
 
     hits = FPA.scan_two(seq1, seq2, False)
     for h in hits:
@@ -246,7 +239,11 @@ def fpa_print(raw_result, hit_result, id1, id2, seq1, seq2,
                 proc = subprocess.check_output(
                     ["python",
                      "-c",
-                     "import fpa_ext4; fpa=fpa_ext4.FPA2(); fpa.set_bool('force_overlap',True); fpa.set_int('min_length',6); fpa.print_hit('{seq1}', '{seq2}', '{raw_result}', True)".format(
+                     "import fpa_ext4; fpa=fpa_ext4.FPA2();"
+                     "fpa.set_bool('force_overlap',True);"
+                     "fpa.set_int('min_length',6);"
+                     "fpa.print_hit('{seq1}', '{seq2}',"
+                     "'{raw_result}', True)".format(
                          seq2=seq2, seq1=seq1, raw_result=raw_result)])
 
         if written is True:
@@ -264,7 +261,7 @@ def fpa_print(raw_result, hit_result, id1, id2, seq1, seq2,
             hit_result[13] >= hit_result[15] and\
             hit_result[28] + hit_result[29] + hit_result[30] > 0\
             and\
-            (hit_result[25] + hit_result[26] + hit_result[27]) == 0 :
+            (hit_result[25] + hit_result[26] + hit_result[27]) == 0:
 
         title = "#Sequences  " + id1 + ',' + id2 + '\n'
         all_alignments.write(title)
@@ -274,9 +271,13 @@ def fpa_print(raw_result, hit_result, id1, id2, seq1, seq2,
         proc = subprocess.check_output(
                 ["python",
                  "-c",
-                 "import fpa_ext4; fpa=fpa_ext4.FPA2(); fpa.set_bool('force_overlap',True); fpa.set_int('min_length',6); fpa.set_bool('iupac',True); fpa.print_hit('{seq1}','{seq2}', '{raw_result}', True)".format(
+                 "import fpa_ext4; fpa=fpa_ext4.FPA2();"
+                 "fpa.set_bool('force_overlap',True);"
+                 "fpa.set_int('min_length',6);"
+                 "fpa.set_bool('iupac',True);"
+                 "fpa.print_hit('{seq1}','{seq2}',"
+                 "'{raw_result}', True)".format(
                      seq2=seq2, seq1=seq1, raw_result=raw_result)])
-
 
         all_alignments.write(str(proc, 'utf-8'))
 
@@ -294,6 +295,21 @@ def fpa_print(raw_result, hit_result, id1, id2, seq1, seq2,
         return all_alignments, None
 
     return None, None
+
+
+def parse_sequences_from_pairwise_mafft(stdout):
+    """
+    Takes a fasta-formatted output and parses
+    the sequences into a dictionary format.
+    """
+
+    fasta_dict = {}
+
+    for fasta in split_multiple_fasta_file(stdout):
+        fasta_parts = fasta.split('\n')
+        fasta_dict[fasta_parts[0].lstrip('>')] = fasta_parts[1]
+
+    return fasta_dict
 
 
 def indexes_in_alignment(seq_indexes, aligned_seq):
@@ -317,32 +333,31 @@ def indexes_in_alignment(seq_indexes, aligned_seq):
 
     """
 
-
     alignment_indexes = []
 
-    min_index = min(set(seq_indexes))
+    seq_len = len(str(aligned_seq).replace('-', '').replace('+', ''))
 
     for index in seq_indexes:
 
+        int_index = index
+        if index == seq_len:
+            int_index = index - 1
+
         position_count = 0
-        new_index = index
-        prev_index = index
+        new_index = 0
+        position_count = -1
 
         for position in aligned_seq:
-            if position == '-':
+
+            if position == '-' or position == '+':
                 new_index += 1
 
             else:
                 position_count += 1
-                prev_index = new_index
-
-            if position_count == index and\
-                    min_index == index and aligned_seq[new_index] != '-':
-                alignment_indexes.append(new_index)
-            elif position_count == index and min_index != index:
-                alignment_indexes.append(prev_index)
-
-                break
+                if position_count == int_index:
+                    alignment_indexes.append(new_index)
+                    break
+                new_index += 1
 
     return alignment_indexes
 
@@ -384,7 +399,4 @@ def indexes_in_original_seq(aligned_indexes, aligned_seq):
                 original_indexes.append(new_index)
                 break
 
-
     return original_indexes
-
-
