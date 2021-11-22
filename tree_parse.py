@@ -869,13 +869,15 @@ def events_per_substitution(database,
 
     for criteria in ["multiple_CM", "CM_and_loop_change",
                      "CM_and_inverted_loop", "inverted_loop",
-                     "new_loop"]:
+                     "stem_extended"]:
 
         query_dict = {}
         query_dict["ts_quality"] = True
         query_dict["structural_quality"] = True
         query_dict[criteria] = True
-        query_dict["ts_mismatch"] = {"$gt": 1}
+        if criteria != "stem_extended":
+            query_dict["ts_mismatch"] = {"$gt": 1}
+        query_dict["ts_distance"] = {"$lt": 9}
         query_list.append(query_dict)
 
     query = {}
@@ -899,7 +901,7 @@ def events_per_substitution(database,
             for x in query:
                 if x in ["multiple_CM", "CM_and_loop_change",
                          "CM_and_inverted_loop", "inverted_loop",
-                         "new_loop"]:
+                         "stem_extended"]:
                     case = x
 
             query_node = document["query_node"]
@@ -963,7 +965,7 @@ def events_per_substitution(database,
 
     for case in ["multiple_CM", "CM_and_loop_change",
                  "CM_and_inverted_loop", "inverted_loop",
-                 "new_loop"]:
+                 "stem_extended"]:
 
         tsm[case][lev] = 0
         tsm_subs[case][lev] = 0
@@ -981,7 +983,7 @@ def events_per_substitution(database,
 
             for case in ["multiple_CM", "CM_and_loop_change",
                          "CM_and_inverted_loop", "inverted_loop",
-                         "new_loop"]:
+                         "stem_extended"]:
 
                 if treex in tsm_collection[case]:
                     if node_name in tsm_collection[case][treex]:
@@ -1000,7 +1002,7 @@ def events_per_substitution(database,
 
     for case in ["multiple_CM", "CM_and_loop_change",
                  "CM_and_inverted_loop", "inverted_loop",
-                 "new_loop"]:
+                 "stem_extended"]:
         for lev in [0, 1, 2]:
             rate3 = round(
                     (Decimal(tsm[case][lev])/Decimal(len(levels[lev]))), 10)
