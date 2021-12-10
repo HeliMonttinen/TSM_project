@@ -60,7 +60,8 @@ def count_loops(i,
 
     fasta_dict: Alignment dictionary, where fasta headers are
                 the keys and they has to correspond the node
-                names of the treei
+                names of the tree
+    alignment_file: A path to a alignmen file
 
     structure_dir: A path to a directory containing the
                    dot-parenthesis files. The file names
