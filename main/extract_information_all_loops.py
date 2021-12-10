@@ -1,9 +1,8 @@
 """
 This script is designed for going through a set of phylogenetic trees
 and extracting RNA loop sequences from their interal nodes. In addition,
-the script ensures the quality of the predicted RNA hairpin by comparing
-the hairpin sequence to the parent and child nodes. In addition, either of
-the child nodes have to have a loop in the corresponding region.
+the script ensures the quality of the predicted RNA hairpin ensuring that
+it is located in a high quality region.
 
 cluster_dir = A directory, in which alignment_file,
               tree file and fpa output file
@@ -62,19 +61,21 @@ def run_loop_study(i, align_dict, structure_dir, identifier, tuplei):
                 (identifier for a reference sequence,
                  identifier for the first child of the reference,
                  identifier for the second child of the reference,
-                 identifier for the ancestor of the reference)
+                 A dictionary containing information on the high
+                 quality regions)
 
 
     Output
     ======
 
-    : an index required for pooling
+    i: an index required for pooling
     :accept_pairs: A dictionary containing counts for
                    the nucleotide pairs in stem region.
-                   Only one base-pair long mismatches are allowed.
-                   If longer, counting breaks.
-    :loop_refs: A dictionary containing
-
+                   Only perfect WC-pairs are accepted and
+                   UG GU. Otherwise breaks.
+    :loop_refs: A dictionary containing counts for§
+                reference loop sequences
+    :loop_count: Loop count
     """
     from RNA_alignments import indexes_in_alignment
     from RNA_loops import (RNA_loops,
@@ -84,7 +85,8 @@ def run_loop_study(i, align_dict, structure_dir, identifier, tuplei):
 
     ref = tuplei[0]
     child1 = tuplei[1]
-    regions_dict = tuplei[2]
+    child2 = tuplei[2]
+    regions_dict = tuplei[3]
 
     loop_refs = {}
     accept_pairs = {"GU": 0, "UG": 0, "AU": 0, "UA": 0,
@@ -103,28 +105,53 @@ def run_loop_study(i, align_dict, structure_dir, identifier, tuplei):
 
     loop_ind_qry_dict = {}
 
-    child_seq = align_dict[child1]
-    dot_child_parenthesis = _join_dot_file_lines(
-            structure_dir + identifier + '_' + child1 + ".db")
-    rna_child_sequence = _get_sequence_dot_parenthesis(
-            structure_dir + identifier + '_' + child1 + ".db")
-    RNA_sequence_c = RNA_loops(dot_child_parenthesis, rna_child_sequence)
-    RNA_sequence_c.sequence_for_loops()
-    loop_inds_child = RNA_sequence_c.loop_indexes
+    loop_inds_child1 = []
+    loop_inds_child2 = []
 
-    for x in range(len(loop_inds_child)):
-        loop_ind_qry = indexes_in_alignment(loop_inds_child[x],
-                                            child_seq)
+    if child1 in align_dict:
+        child_seq1 = align_dict[child1]
+        dot_child1_parenthesis = _join_dot_file_lines(
+            structure_dir + identifier + '_' + child1 + ".db")
+        rna_child1_sequence = _get_sequence_dot_parenthesis(
+            structure_dir + identifier + '_' + child1 + ".db")
+        RNA_sequence_c1 = RNA_loops(
+                dot_child1_parenthesis, rna_child1_sequence)
+        RNA_sequence_c1.sequence_for_loops()
+        loop_inds_child1 = RNA_sequence_c1.loop_indexes
+    if child2 in align_dict:
+        child_seq2 = align_dict[child2]
+        dot_child2_parenthesis = _join_dot_file_lines(
+            structure_dir + identifier + '_' + child2 + ".db")
+        rna_child2_sequence = _get_sequence_dot_parenthesis(
+            structure_dir + identifier + '_' + child2 + ".db")
+        RNA_sequence_c2 = RNA_loops(
+                dot_child2_parenthesis, rna_child2_sequence)
+        RNA_sequence_c2.sequence_for_loops()
+        loop_inds_child2 = RNA_sequence_c2.loop_indexes
+
+    for x in range(len(loop_inds_child1)):
+        loop_ind_qry = indexes_in_alignment(loop_inds_child1[x],
+                                            child_seq1)
 
         loop_ind_qry_dict[
                 str(loop_ind_qry[1]) + ',' +
                 str(loop_ind_qry[2])] = loop_ind_qry
+
+    for x in range(len(loop_inds_child2)):
+        loop_ind_qry = indexes_in_alignment(loop_inds_child2[x],
+                                            child_seq2)
+
+        if (str(loop_ind_qry[1]) + ',' +
+                str(loop_ind_qry[2])) not in loop_ind_qry_dict:
+
+            loop_ind_qry_dict[
+                    str(loop_ind_qry[1]) + ',' +
+                    str(loop_ind_qry[2])] = loop_ind_qry
+
     count = 0
     for index, seq in list(
             zip(loop_inds_ref,
                 RNA_sequence.loop_sequences)):
-
-        count += 1
 
         orig_inds = indexes_in_alignment(
                 index,
@@ -165,6 +192,7 @@ def run_loop_study(i, align_dict, structure_dir, identifier, tuplei):
         if flag_qry is False:
             continue
 
+        count += 1
         loop_start = index[1] - index[0]
         loop_end = index[2] - index[0]
 
@@ -218,6 +246,18 @@ def main():
     """
     The main script for running the analysis.
     Requires user's input.
+
+    cluster_dir: A path to directory containg
+                 tree files
+    output_file_loop_count: Output file for loop counts
+    ouput_file_loop_seq_count: Output file for seq count
+    structure_dir: A path to the directory containing
+                   dot parenthesis files for RNA structures.
+    cpu: CPUs to be used
+    regions_file: A file containing information on 
+                  high quality regions
+    alignment_dir: A path to a folder containing alignment
+    leaf_mode: True or False
     """
     import copy
     from common import return_file
@@ -338,6 +378,7 @@ def main():
                     "GC": 0, "CG": 0}
 
     for filename in path_list:
+
         file_count += 1
 
         filepath = filename
@@ -383,17 +424,27 @@ def main():
 
                 if leaf_mode == "True":
 
-                    if (tree&child1).is_leaf():
-                        set_loops.append((node.name, child1, regs))
-                    if (tree&child2).is_leaf():
-                        set_loops.append((node.name, child2, regs))
+                    if not (tree&child1).is_leaf():
+                        child1 = ""
+                    if not (tree&child2).is_leaf():
+                        child2 = ""
+
+                    if len(child1) == 0 and len(child2) == 0:
+                        continue
+
+                    set_loops.append((node.name, child1, child2, regs))
 
                 else:
 
-                    if not (tree&child1).is_leaf():
-                        set_loops.append((node.name, child1, regs))
-                    if not (tree&child2).is_leaf():
-                        set_loops.append((node.name, child2, regs))
+                    if (tree&child1).is_leaf():
+                        child1 = ""
+                    if (tree&child2).is_leaf():
+                        child2 = ""
+
+                    if len(child1) == 0 and len(child2) == 0:
+                        continue
+
+                    set_loops.append((node.name, child1, child2, regs))
 
         if len(set_loops) < cpu and len(set_loops) > 0:
             pool = mp.Pool(len(set_loops))
@@ -407,49 +458,48 @@ def main():
                   identifier,
                   tuplei)) for i, tuplei in enumerate(set_loops)]
 
-        results = [r.get()[1] for r in results_objects]
+        results1 = [r.get()[1] for r in results_objects]
+        results2 = [r.get()[2] for r in results_objects]
+        results3 = [r.get()[3] for r in results_objects]
 
-        for r in results:
+        for r in range(len(results1)):
 
-            for x in r:
-                accept_pairs[x] += r[x]
+            for x in results1[r]:
+                accept_pairs[x] += results1[r][x]
 
-        results = [r.get()[2] for r in results_objects]
+            if not isinstance(results2[r], str):
 
-        for r in results:
-
-            if not isinstance(r, str):
-
-                for x in r:
+                for x in results2[r]:
                     if 'full' in x:
                         string = '/'.join(x.split('/')[:-1])
                         if string in reverse_complement_sequences:
-                            reverse_complement_sequences[string] += r[x]
+                            reverse_complement_sequences[string] +=\
+                                    results2[r][x]
                         else:
-                            reverse_complement_sequences[string] = r[x]
+                            reverse_complement_sequences[string] =\
+                                    results2[r][x]
                         loops_palindromes += 1
 
                     elif 'part' in x:
                         string = '/'.join(x.split('/')[:-1])
 
                         if string in partial_rev_comp:
-                            partial_rev_comp[string] += r[x]
+                            partial_rev_comp[string] += results2[r][x]
                         else:
-                            partial_rev_comp[string] = r[x]
+                            partial_rev_comp[string] = results2[r][x]
 
                     elif "none" not in x:
                         string = '/'.join(x.split('/')[:-1])
 
                         if string in non_reverse_complement_sequences:
-                            non_reverse_complement_sequences[string] += r[x]
+                            non_reverse_complement_sequences[string] +=\
+                                    results2[r][x]
                         else:
-                            non_reverse_complement_sequences[string] = r[x]
+                            non_reverse_complement_sequences[string] =\
+                                    results2[r][x]
 
-        results = [r.get()[3] for r in results_objects]
-
-        for r in results:
-            if not isinstance(r, str):
-                all_loops += r
+            if not isinstance(results3[r], str):
+                all_loops += results3[r]
 
         pool.close()
         pool.join()
