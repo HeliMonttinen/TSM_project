@@ -44,7 +44,7 @@ def main():
     """
 
     from RNA_loops import identify_seq_fit_to_motif
-    from mystatistics import two_proportions_z_test
+    from mystatistics import one_proportions_z_test
 
     input_freq = sys.argv[1]
     output = sys.argv[2]
@@ -135,12 +135,11 @@ def main():
         motif_n_back = loop_length_back[item]
 
         prop_sample = Decimal(motif_n_sample/all_loops_in_sample)
-        prop_background = Decimal(motif_n_back/all_loops_background)
-        result = two_proportions_z_test(
+        prop_background = float((Decimal(motif_n_back/all_loops_background)))
+        result = one_proportions_z_test(
                 motif_n_sample,
-                motif_n_back,
                 all_loops_in_sample,
-                all_loops_background)
+                prop_background)
 
         with open(output + '_loop_length_immed_CS.txt', 'a+') as f:
 
@@ -155,12 +154,13 @@ def main():
         motif_n_back = motifs_of_interest_background[item]
 
         prop_sample = Decimal(motif_n_sample/all_loops_in_sample)
-        prop_background = Decimal(motif_n_back/all_loops_background)
-        result = two_proportions_z_test(
+        prop_background = float(Decimal(motif_n_back/all_loops_background))
+        result = one_proportions_z_test(
                 motif_n_sample,
-                motif_n_back,
                 all_loops_in_sample,
-                all_loops_background)
+                prop_background)
+
+        print(result)
 
         with open(output + '_motif_immed_CS.txt', 'a+') as f:
 
@@ -186,7 +186,7 @@ def main():
             prop = str(Decimal(int(val)/int(
                 loop_sequence_counts[reverse_seq])))
 
-        with open('reverse_complement_counts_170821.txt', 'a+') as f:
+        with open('reverse_complement_counts.txt', 'a+') as f:
 
             f.write(item + '\t' + str(val) + '\t' + str(reverse_seq) +
                     '\t' + str(reverse_seq_count) + '\t' + prop + '\n')
