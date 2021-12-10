@@ -28,6 +28,15 @@ sys.path.append(filen)
 def main():
     """
     Runs a script for simulations.
+
+    output_dir: A directory for output files
+    filename_inf: A treefile to which the simulations
+                  are run
+    log_directory: A directory to .iqtree log
+                   outputs from which the tree parameters
+                   are extracted
+    path_to_script: A full path to lambda.pl script of
+                    dawg package
     """
 
     from collections import OrderedDict
